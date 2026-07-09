@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PGZ Admin Control Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-auth-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #00D9FF;
+            --primary-dark: #0096B8;
+            --secondary: #1A1F3A;
+            --accent: #FF6B6B;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text: #1F2937;
+            --text-light: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--secondary);
+            color: white;
+            padding: 2rem 1.5rem;
+            position: fixed;
+            width: 250px;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar h1 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu li {
+            margin-bottom: 1rem;
+        }
+
+        .nav-menu button {
+            width: 100%;
+            padding: 0.875rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        .nav-menu button:hover,
+        .nav-menu button.active {
+            background: var(--primary);
+            color: var(--secondary);
+        }
+
+        .logout-btn {
+            width: 100%;
+            margin-top: 2rem;
+            padding: 0.875rem;
+            background: var(--accent);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 250px;
+            padding: 2rem;
+        }
+
+        .header {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: var(--text);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Products Section */
+        .product-form {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,217,255,0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--secondary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-danger {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.85;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Products Table */
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--bg);
+            border-bottom: 2px solid var(--border);
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:hover {
+            background: var(--bg);
+        }
+
+        /* Orders Section */
+        .order-card {
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .order-id {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .status-pending {
+            background: rgba(245,158,11,0.2);
+            color: var(--warning);
+        }
+
+        .status-confirmed {
+            background: rgba(16,185,129,0.2);
+            color: var(--success);
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-item {
+            font-size: 0.95rem;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            color: var(--text-light);
+            word-break: break-all;
+        }
+
+        .items-list {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 600;
+        }
+
+        .item-price {
+            color: var(--primary);
+        }
+
+        .toast {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--card-bg);
+            border-left: 4px solid var(--primary);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 10000;
+            max-width: 400px;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--accent);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-light);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 1rem;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .order-details {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h1>PGZ Admin</h1>
+        <ul class="nav-menu">
+            <li><button onclick="showSection('dashboard', event)" class="active">📊 Dashboard</button></li>
+            <li><button onclick="showSection('products', event)">📦 Products</button></li>
+            <li><button onclick="showSection('orders', event)">📋 Orders</button></li>
+        </ul>
+        <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <div class="header">
+                <h2>Dashboard</h2>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalProducts">0</div>
+                    <div class="stat-label">Total Products</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalOrders">0</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingOrders">0</div>
+                    <div class="stat-label">Pending Orders</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalRevenue">৳0</div>
+                    <div class="stat-label">Total Revenue</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboardProducts">
+                        <tr><td colspan="4" style="text-align:center;padding:2rem;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Products Section -->
+        <div id="products" class="section">
+            <div class="header">
+                <h2>Manage Products</h2>
+            </div>
+
+            <div class="product-form">
+                <h3 style="margin-bottom: 1.5rem;">Add New Product</h3>
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="productName" placeholder="e.g., iPhone 14 Pro">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Price (৳)</label>
+                        <input type="number" id="productPrice" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Original Price (৳)</label>
+                        <input type="number" id="productOriginalPrice" placeholder="0" min="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="productStock" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="url" id="productImage" placeholder="https://example.com/image.jpg">
+                </div>
+                <button class="btn btn-primary" onclick="addProduct()">✓ Add Product</button>
+            </div>
+
+            <div class="table-container">
+                <h3 style="padding: 1rem 1rem 0 1rem;">All Products</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Sold</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTable">
+                        <tr><td colspan="5" style="text-align:center;padding:2rem;">Loading products...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="orders" class="section">
+            <div class="header">
+                <h2>All Orders</h2>
+            </div>
+
+            <div id="ordersList">
+                <div class="empty-state">Loading orders...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeEditModal()">✕</button>
+        <h2>Edit Product</h2>
+        <br>
+        <div class="form-group">
+            <label>Product Name</label>
+            <input type="text" id="editProductName" placeholder="Product name">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Price (৳)</label>
+                <input type="number" id="editProductPrice" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+                <label>Original Price (৳)</label>
+                <input type="number" id="editProductOriginalPrice" placeholder="0" min="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Stock</label>
+            <input type="number" id="editProductStock" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+            <label>Image URL</label>
+            <input type="url" id="editProductImage" placeholder="https://example.com/image.jpg">
+        </div>
+        <div style="display:flex;gap:1rem;">
+            <button class="btn btn-primary" onclick="updateProduct()" style="flex:1;">Save Changes</button>
+            <button class="btn btn-danger" onclick="deleteProduct()" style="flex:1;">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============ FIREBASE CONFIG ============
+const firebaseConfig = {
+  apiKey: "AIzaSyDOk8STzEaxn3ZdWx30QfULQEGktdXKNcQ",
+  authDomain: "website-158be.firebaseapp.com",
+  databaseURL: "https://website-158be-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "website-158be",
+  storageBucket: "website-158be.firebasestorage.app",
+  messagingSenderId: "491663596537",
+  appId: "1:491663596537:web:814836df55608c8016bb28",
+  measurementId: "G-75XCH0BZWM"
+};
+
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const auth = firebase.auth();
+
+    // ============ STATE ============
+    let products = [];
+    let orders = [];
+    let currentEditId = null;
+    const ADMIN_PASSWORD = 'admin123'; //==========PASSSSS==========//
+
+    // ============ INIT ============
+    document.addEventListener('DOMContentLoaded', () => {
+        checkAuth();
+    });
+
+    function checkAuth() {
+        const isLoggedIn = sessionStorage.getItem('pgzAdmin');
+        if (!isLoggedIn) {
+            const password = prompt('Enter Admin Password:');
+            if (password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('pgzAdmin', 'true');
+                loadData();
+            } else {
+                alert('Invalid Password!');
+                window.location.href = '/';
+            }
+        } else {
+            loadData();
+        }
+    }
+
+    function loadData() {
+        loadProducts();
+        loadOrders();
+    }
+
+    // ============ PRODUCTS ============
+    function loadProducts() {
+        database.ref('products').on('value', (snapshot) => {
+            const data = snapshot.val();
+            products = [];
+            if (data) {
+                Object.entries(data).forEach(([key, value]) => {
+                    products.push({ id: key, ...value });
+                });
+            }
+            renderProducts();
+            updateDashboard();
+        });
+    }
+
+    function renderProducts() {
+        const tableBody = document.getElementById('productsTable');
+        if (products.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">No products yet</td></tr>';
+            return;
+        }
+ 
+        tableBody.innerHTML = products.map(p => `
+            <tr>
+                <td>${p.name}</td>
+                <td>৳${p.price.toLocaleString('en-BD')}</td>
+                <td>${p.quantity}</td>
+                <td>${p.orders || 0}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="editProduct('${p.id}')">Edit</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function addProduct() {
+        const name = document.getElementById('productName').value.trim();
+        const price = parseFloat(document.getElementById('productPrice').value) || 0;
+        const originalPrice = parseFloat(document.getElementById('productOriginalPrice').value) || null;
+        const stock = parseFloat(document.getElementById('productStock').value) || 0;
+        const image = document.getElementById('productImage').value.trim();
+
+        if (!name || price <= 0 || stock < 0) {
+            showToast('Please fill all required fields correctly', 'error');
+            return;
+        }
+
+        const newProduct = {
+            name,
+            price,
+            originalPrice: originalPrice || null,
+            quantity: stock,
+            image: image || '',
+            orders: 0
+        };
+
+        database.ref('products').push().set(newProduct, (error) => {
+            if (error) {
+                showToast('Error adding product: ' + error.message, 'error');
+            } else {
+                showToast('Product added successfully!', 'success');
+                document.getElementById('productName').value = '';
+                document.getElementById('productPrice').value = '';
+                document.getElementById('productOriginalPrice').value = '';
+                document.getElementById('productStock').value = '';
+                document.getElementById('productImage').value = '';
+            }
+        });
+    }
+
+    function editProduct(id) {
+        const product = products.find(p => p.id === id);
+        if (!product) return;
+
+        currentEditId = id;
+        document.getElementById('editProductName').value = product.name;
+        document.getElementById('editProductPrice').value = product.price;
+        document.getElementById('editProductOriginalPrice').value = product.originalPrice || '';
+        document.getElementById('editProductStock').value = product.quantity;
+        document.getElementById('editProductImage').value = product.image || '';
+
+        document.getElementById('editModal').classList.add('active');
+    }
+
+    function updateProduct() {
+        if (!currentEditId) return;
+
+        const name = document.getElementById('editProductName').value.trim();
+        const price = parseFloat(document.getElementById('editProductPrice').value) || 0;
+        const originalPrice = parseFloat(document.getElementById('editProductOriginalPrice').value) || null;
+        const stock = parseFloat(document.getElementById('editProductStock').value) || 0;
+        const image = document.getElementById('editProductImage').value.trim();
+
+        if (!name || price <= 0) {
+            showToast('Invalid input', 'error');
+            return;
+        }
+
+        const updated = {
+            name,
+            price,
+            originalPrice: originalPrice || null,
+            quantity: stock,
+            image
+        };
+
+        database.ref('products/' + currentEditId).update(updated, (error) => {
+            if (error) {
+                showToast('Error updating: ' + error.message, 'error');
+            } else {
+                showToast('Product updated!', 'success');
+                closeEditModal();
+            }
+        });
+    }
+
+    function deleteProduct() {
+        if (!currentEditId || !confirm('Are you sure?')) return;
+
+        database.ref('products/' + currentEditId).remove((error) => {
+            if (error) {
+                showToast('Error deleting: ' + error.message, 'error');
+            } else {
+                showToast('Product deleted!', 'success');
+                closeEditModal();
+            }
+        });
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+        currentEditId = null;
+    }
+
+    // ============ ORDERS ============
+    function loadOrders() {
+        database.ref('orders').on('value', (snapshot) => {
+            const data = snapshot.val();
+            orders = [];
+            if (data) {
+                Object.entries(data).forEach(([key, value]) => {
+                    orders.push({ id: key, ...value });
+                });
+            }
+            orders.sort((a, b) => b.timestamp - a.timestamp);
+            renderOrders();
+            updateDashboard();
+        });
+    }
+
+    function renderOrders() {
+        const container = document.getElementById('ordersList');
+        if (orders.length === 0) {
+            container.innerHTML = '<div class="empty-state">No orders yet</div>';
+            return;
+        }
+
+        container.innerHTML = orders.map(order => {
+            const itemsList = order.items.map(item => 
+                `<div class="item"><span class="item-name">${item.name} × ${item.quantity}</span><span class="item-price">৳${(item.price * item.quantity).toLocaleString('en-BD')}</span></div>`
+            ).join('');
+
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-id">Order #${order.id.substring(0, 8).toUpperCase()}</div>
+                        <span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Customer</div>
+                            <div class="detail-value">${order.customerName}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Phone</div>
+                            <div class="detail-value">${order.customerPhone}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value">${order.customerEmail}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Date</div>
+                            <div class="detail-value">${order.date}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Address</div>
+                            <div class="detail-value">${order.customerAddress}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Total</div>
+                            <div class="detail-value">৳${order.total.toLocaleString('en-BD')}</div>
+                        </div>
+                    </div>
+                    <div class="items-list">
+                        <div style="font-weight:600;margin-bottom:0.75rem;">Items:</div>
+                        ${itemsList}
+                    </div>
+                    ${order.orderNotes ? `<p><strong>Notes:</strong> ${order.orderNotes}</p>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ============ DASHBOARD ============
+    function updateDashboard() {
+        document.getElementById('totalProducts').textContent = products.length;
+        document.getElementById('totalOrders').textContent = orders.length;
+        document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'Pending').length;
+
+        const revenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+        document.getElementById('totalRevenue').textContent = '৳' + revenue.toLocaleString('en-BD');
+
+        const dashTable = document.getElementById('dashboardProducts');
+        if (products.length === 0) {
+            dashTable.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;">No products</td></tr>';
+        } else {
+            dashTable.innerHTML = products.slice(0, 5).map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>৳${p.price.toLocaleString('en-BD')}</td>
+                    <td>${p.quantity}</td>
+                    <td>${p.orders || 0}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // ============ NAVIGATION ============
+    function showSection(sectionId, evt) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-menu button').forEach(b => b.classList.remove('active'));
+
+        document.getElementById(sectionId).classList.add('active');
+        if (evt && evt.target) {
+            evt.target.classList.add('active');
+        }
+    }
+
+    function logout() {
+        sessionStorage.removeItem('pgzAdmin');
+        window.location.href = '/';
+    }
+
+    // ============ TOAST ============
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
